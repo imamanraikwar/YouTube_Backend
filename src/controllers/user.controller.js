@@ -1,10 +1,12 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { options } from "../constants.js";
 
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import jwt from "jsonwebtoken";
 
 const generateAccessAndRefreshToken = async (user) => {
   try {
@@ -129,10 +131,10 @@ const loginUser = asyncHandler(async (req, res) => {
     "-password -refreshToken"
   );
 
-  const options = {
-    httpOnly: true,
-    secure: true,
-  };
+  // const options = {
+  //   httpOnly: true,
+  //   secure: true,
+  // };
 
   return res
     .status(200)
@@ -166,10 +168,10 @@ const logoutUser = asyncHandler(async (req, res) => {
     }
   );
 
-  const options = {
-    httpOnly: true,
-    secure: true,
-  };
+  // const options = {
+  //   httpOnly: true,
+  //   secure: true,
+  // };
 
   return res
     .status(200)
@@ -178,4 +180,40 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, "User logged out successfully"));
 });
 
-export { registerUser, loginUser, logoutUser };
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.registerUser;
+
+  if (!incomingRefreshToken) {
+    throw new ApiError(401, "Unauthorized request");
+  }
+
+  try {
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+    const user = await User.findById(decodedToken?._id).select("-password");
+
+    if (!user.refreshToken == incomingRefreshToken) {
+      throw new ApiError(401, "Unauthorize Access");
+    }
+
+    const { accessToken, refreshToken } =
+      await generateAccessAndRefreshToken(user);
+
+    return res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", refreshToken, options)
+      .json(new ApiResponse(200, "AccessToken refreshed successfully"));
+  } catch (error) {
+    throw new ApiError(
+      "404",
+      error?.message || "Something went wrong while refresh the Access token"
+    );
+  }
+});
+
+export { registerUser, loginUser, logoutUser, refreshAccessToken };
