@@ -247,10 +247,116 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
   }
 });
 
+const getUserDetails = asyncHandler(async(req,res)=>{
+  console.log("In get User Controller")
+  try {
+    const user = req.user
+    if(!user){
+      throw new ApiError(401,"Unauthorize access")
+    }
+
+    return res
+    .status(200)
+    .json(new ApiResponse(
+      200, user,"Get user details successfully"
+    ))
+  } catch (error) {
+    throw new ApiError(404,error.message || "Something went wrong")
+  }
+})
+
+const updateUserProfile = asyncHandler(async(req,res)=>{
+  const {fullName, email} = req.body
+
+  if(!fullName || !email){
+    throw new ApiError(401,"All filed are required")
+  }
+
+  const user = await User.findByIdAndUpdate(req.user?._id,
+    {
+      $set :{
+        fullName,
+        email
+      }
+    },
+    {new:true}
+    
+    ).select("-password")
+
+    if(!user){
+      throw new ApiError(401,"Unauthorized Access")
+    }
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,{user},"User Profile updated successfully"))
+})
+
+const updateUserAvatar = asyncHandler(async(req,res)=>{
+  console.log(req.files)
+  const avatarLocalPath = req.files?.avatar[0]?.path
+
+  if(!avatarLocalPath){
+    throw new ApiError(405,"File not found")
+  }
+
+  const avatarPath = await uploadOnCloudinary(avatarLocalPath)
+  if(!avatarPath.url){
+    throw new ApiError(501,"Profile not updated")
+  }
+
+  await User.findByIdAndUpdate(req.user?._id,
+      {
+        $set:{
+          avatar:avatarPath?.url
+        }
+      },
+      {new:true}
+    )
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,{},"Avatar updated successfully"))
+})
+
+const updateUserCoverImage = asyncHandler(async(req,res)=>{
+  console.log(req.file)
+  const coverImageLocalPath = req.file?.path
+
+  if(!coverImageLocalPath){
+    throw new ApiError(405,"File not found")
+  }
+
+  const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+  if(!coverImage.url){
+    throw new ApiError(501,"Cover Image not updated")
+  }
+
+  await User.findByIdAndUpdate(req.user?._id,
+      {
+        $set:{
+          avatar:coverImage?.url
+        }
+      },
+      {new:true}
+    )
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,{},"coverImage updated successfully"))
+})
+
+
+
 export {
   registerUser,
   loginUser,
   logoutUser,
   refreshAccessToken,
   changeCurrentPassword,
+  getUserDetails,
+  updateUserProfile,
+  updateUserAvatar,
+ updateUserCoverImage 
+  
 };
