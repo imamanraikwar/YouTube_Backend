@@ -216,4 +216,41 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  try {
+    const { password, newPassword } = req.body;
+    console.log("Password----", password, "New Password", newPassword);
+    if (!password || !newPassword) {
+      throw new ApiError(402, "All field are required");
+    }
+
+    const user = await User.findById(req?.user._id);
+    console.log();
+
+    if (!user) {
+      throw new ApiError(401, "User not loggedIn");
+    }
+
+    const checkPassword = await user.isPasswordCorrect(password);
+    if (checkPassword == false) {
+      throw new ApiError(402, "your old password is not correct");
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    return res
+      .status(200)
+      .json(new ApiResponse(201, "Password is change successfully"));
+  } catch (error) {
+    throw new ApiError(501, error.message || "Something went wrong");
+  }
+});
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  changeCurrentPassword,
+};
